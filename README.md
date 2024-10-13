@@ -99,7 +99,7 @@
 <details><summary><b>Deploy To VPS</summary>
 
 
-`git clone https://github.com/VJBots/VJ-Filter-Bot`
+`git clonerepo-url`
 
 Install Packages
 

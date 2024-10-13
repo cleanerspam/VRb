@@ -1,6 +1,6 @@
 {
-    "name": "VJ-FILTER-BOT",
-    "description": "This is auto filter bot with many advanced features.",
+    "name": "VR-BOT",
+    "description": "This is auto filter bot with many features.",
     "stack": "container",
     "keywords": [
       "telegram",

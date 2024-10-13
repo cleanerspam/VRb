@@ -2425,26 +2425,28 @@ async def cb_handler(client: Client, query: CallbackQuery):
             btn = [[
                     InlineKeyboardButton("⟸ Bᴀᴄᴋ", callback_data="start")
                   ]]
-            await client.edit_message_media(
-                query.message.chat.id, 
-                query.message.id, 
-                InputMediaPhoto(random.choice(PICS))
-            )
-            reply_markup = InlineKeyboardMarkup(btn)
-            await query.message.edit_text(
-                text=(script.TAMIL_INFO),
-                reply_markup=reply_markup,
-                parse_mode=enums.ParseMode.HTML
-            )
-    elif query.data == "english_info":
-            btn = [[
-                    InlineKeyboardButton("⟸ Bᴀᴄᴋ", callback_data="start")FILE_STORE_CHANNEL
-                  ]]
-            await client.edit_message_media(
-                query.message.chat.id, 
-                query.message.id, 
-                InputMediaPhoto(random.choice(PICS))
-            )
+  await client.edit_message_media(
+    query.message.chat.id, 
+    query.message.id, 
+    InputMediaPhoto(random.choice(PICS))
+)
+reply_markup = InlineKeyboardMarkup(btn)
+await query.message.edit_text(
+    text=(script.TAMIL_INFO),
+    reply_markup=reply_markup,
+    parse_mode=enums.ParseMode.HTML
+)
+elif query.data == "english_info":
+    btn = [[
+        InlineKeyboardButton("⟸ Bᴀᴄᴋ", callback_data="start"),  # Added a comma here
+        FILE_STORE_CHANNEL  # Ensure this is intended to be part of the button
+    ]]
+    await client.edit_message_media(
+        query.message.chat.id, 
+        query.message.id, 
+        InputMediaPhoto(random.choice(PICS))
+    )
+
             reply_markup = InlineKeyboardMarkup(btn)
             await query.message.edit_text(
                 text=(script.ENGLISH_INFO),

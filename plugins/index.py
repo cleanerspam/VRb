@@ -20,12 +20,12 @@ async def index_files(bot, query):
         temp.CANCEL = True
         return await query.answer("Cancelling Indexing")
     
-    _, raju, chat, lst_msg_id, from_user = query.data.split("#")
+    _, action, chat, lst_msg_id, from_user = query.data.split("#")
     
-    if raju == 'reject':
+    if action == 'reject':
         await query.message.delete()
         await bot.send_message(int(from_user),
-                               f'Your Submission for indexing {chat} has been declined by our moderators.',
+                               f'Your submission for indexing {chat} has been declined by our moderators.',
                                reply_to_message_id=int(lst_msg_id))
         return
 
@@ -37,7 +37,7 @@ async def index_files(bot, query):
 
     if int(from_user) not in ADMINS:
         await bot.send_message(int(from_user),
-                               f'Your Submission for indexing {chat} has been accepted by our moderators and will be added soon.',
+                               f'Your submission for indexing {chat} has been accepted by our moderators and will be added soon.',
                                reply_to_message_id=int(lst_msg_id))
     
     await msg.edit(
@@ -56,7 +56,7 @@ async def index_files(bot, query):
 
 @Client.on_message(filters.private & filters.command('index'))
 async def send_for_index(bot, message):
-    vj = await bot.ask(message.chat.id, "**Now Send Me Your Channel Last Post Link Or Forward A Last Message From Your Index Channel.**")
+    vj = await bot.ask(message.chat.id, "**Now send me your channel's last post link or forward a last message from your index channel.**")
     
     if vj.text:
         regex = re.compile(r"(https://)?(t\.me/|telegram\.me/|telegram\.dog/)(c/)?(\d+|[a-zA-Z_0-9]+)/(\d+)$")
@@ -67,21 +67,21 @@ async def send_for_index(bot, message):
         last_msg_id = int(match.group(5))
         if chat_id.isnumeric():
             chat_id = int("-100" + chat_id)
-    elif vj.forward_from_chat.type == enums.ChatType.CHANNEL:
+    elif vj.forward_from_chat and vj.forward_from_chat.type == enums.ChatType.CHANNEL:
         last_msg_id = vj.forward_from_message_id
         chat_id = vj.forward_from_chat.username or vj.forward_from_chat.id
     else:
-        return
+        return await vj.reply('Invalid message. Please forward a valid channel message.')
     
     try:
         await bot.get_chat(chat_id)
     except ChannelInvalid:
-        return await vj.reply('This may be a private channel / group. Make me an admin over there to index the files.')
+        return await vj.reply('This may be a private channel/group. Make me an admin over there to index the files.')
     except (UsernameInvalid, UsernameNotModified):
         return await vj.reply('Invalid Link specified.')
     except Exception as e:
         logger.exception(e)
-        return await vj.reply(f'Errors - {e}')
+        return await vj.reply(f'Error: {e}')
     
     skip_msg = await bot.ask(message.chat.id, "**Please provide a skip number (enter 0 to start from the first file):**")
     
@@ -98,10 +98,10 @@ async def send_for_index(bot, message):
     try:
         k = await bot.get_messages(chat_id, last_msg_id)
     except Exception:
-        return await message.reply('Make sure I am an admin in the channel, if the channel is private.')
+        return await message.reply('Make sure I am an admin in the channel if the channel is private.')
 
     if k.empty:
-        return await message.reply('This may be a group and I am not an admin of the group.')
+        return await message.reply('This may be a group, and I am not an admin of the group.')
 
     if message.from_user.id in ADMINS:
         buttons = [
@@ -141,7 +141,7 @@ async def send_for_index(bot, message):
     await bot.send_message(LOG_CHANNEL,
                            f'#IndexRequest\n\nBy: {message.from_user.mention} (<code>{message.from_user.id}</code>)\nChat ID/Username: <code>{chat_id}</code>\nLast Message ID: <code>{last_msg_id}</code>\nInvite Link: {link}',
                            reply_markup=reply_markup)
-    await message.reply('Thank you for the contribution, wait for my moderators to verify the files.')
+    await message.reply('Thank you for the contribution. Wait for my moderators to verify the files.')
 
 @Client.on_message(filters.command('setskip') & filters.user(ADMINS))
 async def set_skip_number(bot, message):
@@ -154,7 +154,7 @@ async def set_skip_number(bot, message):
         await message.reply(f"Successfully set SKIP number as {skip}")
         temp.CURRENT = int(skip)
     else:
-        await message.reply("Give me a skip number")
+        await message.reply("Provide a skip number.")
 
 async def index_files_to_db(lst_msg_id, chat, msg, bot):
     total_files = 0

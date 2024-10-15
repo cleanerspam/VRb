@@ -20,12 +20,12 @@ async def index_files(bot, query):
         temp.CANCEL = True
         return await query.answer("Cancelling Indexing")
     
-    _, action, chat, lst_msg_id, from_user = query.data.split("#")
+    _, raju, chat, lst_msg_id, from_user = query.data.split("#")
     
-    if action == 'reject':
+    if raju == 'reject':
         await query.message.delete()
         await bot.send_message(int(from_user),
-                               f'Your submission for indexing {chat} has been declined by our moderators.',
+                               f'Your Submission for indexing {chat} has been declined by our moderators.',
                                reply_to_message_id=int(lst_msg_id))
         return
 
@@ -37,7 +37,7 @@ async def index_files(bot, query):
 
     if int(from_user) not in ADMINS:
         await bot.send_message(int(from_user),
-                               f'Your submission for indexing {chat} has been accepted by our moderators and will be added soon.',
+                               f'Your Submission for indexing {chat} has been accepted by our moderators and will be added soon.',
                                reply_to_message_id=int(lst_msg_id))
     
     await msg.edit(
@@ -56,25 +56,29 @@ async def index_files(bot, query):
 
 @Client.on_message(filters.private & filters.command('index'))
 async def send_for_index(bot, message):
-    vj = await bot.ask(message.chat.id, "**Now send me your channel's last post link or forward a last message from your index channel.**")
+    # Ask for the last post link or forwarded message
+    vj = await bot.ask(message.chat.id, "**Now send me your channel's last post link or forward the last message from your index channel.**")
     
     if vj.text:
+        # Extract chat ID and last message ID from the link
         regex = re.compile(r"(https://)?(t\.me/|telegram\.me/|telegram\.dog/)(c/)?(\d+|[a-zA-Z_0-9]+)/(\d+)$")
         match = regex.match(vj.text)
         if not match:
             return await vj.reply('Invalid link\n\nTry again by /index')
         chat_id = match.group(4)
-        last_msg_id = int(match.group(5))
+        last_msg_id = int(match.group(5))  # Last message ID in the channel
         if chat_id.isnumeric():
-            chat_id = int("-100" + chat_id)
+            chat_id = int("-100" + chat_id)  # Convert to proper chat ID for private chats
     elif vj.forward_from_chat and vj.forward_from_chat.type == enums.ChatType.CHANNEL:
+        # Extract from forwarded message
         last_msg_id = vj.forward_from_message_id
         chat_id = vj.forward_from_chat.username or vj.forward_from_chat.id
     else:
         return await vj.reply('Invalid message. Please forward a valid channel message.')
     
+    # Verify the chat and bot permissions
     try:
-        await bot.get_chat(chat_id)
+        await bot.get_chat(chat_id)  # Check if the bot can access the chat
     except ChannelInvalid:
         return await vj.reply('This may be a private channel/group. Make me an admin over there to index the files.')
     except (UsernameInvalid, UsernameNotModified):
@@ -83,26 +87,25 @@ async def send_for_index(bot, message):
         logger.exception(e)
         return await vj.reply(f'Error: {e}')
     
+    # Ask for skip number input
     skip_msg = await bot.ask(message.chat.id, "**Please provide a skip number (enter 0 to start from the first file):**")
     
     try:
-        skip = int(skip_msg.text)
+        skip = int(skip_msg.text)  # Get the skip number
         if skip < 0:
             return await skip_msg.reply("Skip number must be a non-negative integer.")
     except ValueError:
         return await skip_msg.reply("Invalid input. Please enter a non-negative integer.")
-
-    if skip > 0:
-        last_msg_id += skip
-
+    
     try:
+        # Fetch the message with the given last_msg_id to verify it's accessible
         k = await bot.get_messages(chat_id, last_msg_id)
+        if not k:
+            return await message.reply('This may be a group and I am not an admin of the group.')
     except Exception:
-        return await message.reply('Make sure I am an admin in the channel if the channel is private.')
+        return await message.reply('Make sure I am an admin in the channel, if the channel is private.')
 
-    if k.empty:
-        return await message.reply('This may be a group, and I am not an admin of the group.')
-
+    # If user is admin, ask for confirmation before indexing
     if message.from_user.id in ADMINS:
         buttons = [
             [
@@ -119,6 +122,7 @@ async def send_for_index(bot, message):
             reply_markup=reply_markup
         )
 
+    # If user is not admin, send the request to the moderators for approval
     if isinstance(chat_id, int):
         try:
             link = (await bot.create_chat_invite_link(chat_id)).invite_link
@@ -141,7 +145,7 @@ async def send_for_index(bot, message):
     await bot.send_message(LOG_CHANNEL,
                            f'#IndexRequest\n\nBy: {message.from_user.mention} (<code>{message.from_user.id}</code>)\nChat ID/Username: <code>{chat_id}</code>\nLast Message ID: <code>{last_msg_id}</code>\nInvite Link: {link}',
                            reply_markup=reply_markup)
-    await message.reply('Thank you for the contribution. Wait for my moderators to verify the files.')
+    await message.reply('Thank you for the contribution, wait for my moderators to verify the files.')
 
 @Client.on_message(filters.command('setskip') & filters.user(ADMINS))
 async def set_skip_number(bot, message):
@@ -154,7 +158,7 @@ async def set_skip_number(bot, message):
         await message.reply(f"Successfully set SKIP number as {skip}")
         temp.CURRENT = int(skip)
     else:
-        await message.reply("Provide a skip number.")
+        await message.reply("Give me a skip number")
 
 async def index_files_to_db(lst_msg_id, chat, msg, bot):
     total_files = 0
@@ -200,16 +204,18 @@ async def index_files_to_db(lst_msg_id, chat, msg, bot):
                 
                 media.file_type = message.media.value
                 media.caption = message.caption
-                aynav, vnay = await save_file(media)
-                
+                aynav = await save_file(media)
                 if aynav:
                     total_files += 1
-                elif vnay == 0:
+                else:
                     duplicate += 1
-                elif vnay == 2:
-                    errors += 1
+        
+        except FloodWait as e:
+            await asyncio.sleep(e.value)
         except Exception as e:
             logger.exception(e)
-            await msg.edit(f'Error: {e}')
-        else:
-            await msg.edit(f'Successfully saved <code>{total_files}</code> to database!\nDuplicate Files Skipped: <code>{duplicate}</code>\nDeleted Messages Skipped: <code>{deleted}</code>\nNon-Media messages skipped: <code>{no_media + unsupported}</code> (Unsupported Media - `{unsupported}`)\nErrors Occurred: <code>{errors}</code>')
+            errors += 1
+        
+        await msg.edit_text(
+            text=f"Successfully completed!!\n\nSaved <code>{total_files}</code> files to database!\nDuplicate Files Skipped: <code>{duplicate}</code>\nDeleted Messages Skipped: <code>{deleted}</code>\nNon-Media messages skipped: <code>{no_media + unsupported}</code> (Unsupported Media - `{unsupported}`)\nErrors Occurred: <code>{errors}</code>"
+        )
